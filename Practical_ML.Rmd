@@ -1,0 +1,47 @@
+---
+title: "Practical ML"
+author: "Jussi Leinonen"
+date: "24 toukokuuta 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Importing the Data and Exploratory Analysis
+This part of the code imports the test and train data from home folder. Columns with NAs and 7 first columns with non-relevant factors (timestamps etc.) were removed.
+
+```{r import}
+library(caret)
+train <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!",""))
+test <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!",""))
+train <- train[, colSums(is.na(train)) == 0] 
+test <- test[, colSums(is.na(test)) == 0]
+train <- train[,-c(1:7)] 
+test <- test[,-c(1:7)]
+str(train$classe)
+
+```
+
+## Random Forest Prediction with Cross Validation
+Here first a cross validation set from training data is formed. Then a random forest model with 50 trees and 5x cross validation is performed. Top 10 most important factors for prediction seem reasonable 
+
+```{r randomForest}
+set.seed(1)
+Partition <- createDataPartition(y = train$classe, p = 0.7, list = FALSE)
+train_CV <- train[Partition,]
+test_CV <- train[-Partition,]
+CV <- trainControl(method = "cv", number = 5)
+
+model <- train(classe ~ ., method = "rf", data = train_CV, trControl = CV, ntree=50)
+model
+confusionMatrix(test_CV$classe, predict(model,test_CV))
+plot(varImp(model), main = "Top 10 most important factors for prediction", top=10)
+predict(model,test)
+```
+## Conclusion
+
+Our algorithms prediction accuracy at cross validation is >99% (95% CI : (0.9917, 0.9959). This means that the predicitions have a high confidence.
+
+The expected out-of-sample error is calculated as 1 - accuracy for predictions made against the cross-validation set. 1 - 0.994 = 0.006
